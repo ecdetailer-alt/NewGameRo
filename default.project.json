@@ -1,0 +1,30 @@
+{
+  "name": "AetherPowerTraining",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "GameShared": {
+        "$className": "Folder",
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "AetherServer": {
+        "$className": "Folder",
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/client"
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting"
+    }
+  }
+}
