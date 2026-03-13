@@ -78,6 +78,7 @@ function HUDController.new(config, player, playerGui)
 	xpBar.Parent = xpBarBg
 	Instance.new("UICorner", xpBar).CornerRadius = UDim.new(0, 8)
 	local txtXP = makeTextLabel(topPanel, "XP: 0 / 0", UDim2.new(1, -16, 0, 18), UDim2.new(0.08, 0, 0.08, 0), Enum.Font.Gotham, 16)
+	local txtZone = makeTextLabel(topPanel, "Zone: --", UDim2.new(1, -16, 0, 18), UDim2.new(0.08, 0, 0.72, 0), Enum.Font.Gotham, 15)
 
 	local txtCombo = makeTextLabel(centerPanel, "Combo: 0", UDim2.new(0.6, 0, 1, 0), UDim2.new(0.03, 0, 0.08, 0), Enum.Font.FredokaOne, 30)
 	local txtMessage = makeTextLabel(centerPanel, "Start your session from the menu.", UDim2.new(0.97, 0, 0.6, 0), UDim2.new(0.03, 0, 0.2, 0), Enum.Font.Gotham, 18)
@@ -115,6 +116,14 @@ function HUDController.new(config, player, playerGui)
 
 	syncStats()
 
+	local function getInventoryActionDisplay(slot)
+		local inventory = player:FindFirstChild("AbilityInventory")
+		local slotNode = inventory and inventory:FindFirstChild(("Slot%d"):format(slot))
+		local actionName = slotNode and slotNode.Value or ""
+		local actionCfg = config.Actions[actionName]
+		return actionCfg and (actionCfg.DisplayName or actionName) or ("Slot %d"):format(slot)
+	end
+
 	function self.setSessionActive(active)
 		self.SessionActive = active
 		leftPanel.Visible = active
@@ -123,7 +132,11 @@ function HUDController.new(config, player, playerGui)
 		bottomPanel.Visible = active
 		self.ActionContainer.Visible = active
 		if active then
-			feedbackText.Text = "Session running. Bind your actions with Q / E / R."
+			feedbackText.Text = ("Session running. Use slots: [1] %s | [2] %s | [3] %s"):format(
+				getInventoryActionDisplay(1),
+				getInventoryActionDisplay(2),
+				getInventoryActionDisplay(3)
+			)
 		else
 			feedbackText.Text = "Pause complete. Return to menu to restart."
 		end
@@ -179,6 +192,9 @@ function HUDController.new(config, player, playerGui)
 	end
 
 	function self.processFeedback(payload)
+		if payload and payload.Zone then
+			txtZone.Text = ("Zone: %s"):format(payload.Zone)
+		end
 		if not payload or not payload.Success then
 			self.showActionMessage(payload.Message or "Missed action.", Color3.fromRGB(255, 150, 140))
 			return

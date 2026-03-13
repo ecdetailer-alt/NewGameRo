@@ -9,6 +9,157 @@ local ArenaRoot
 local SpawnPart
 local ArenaTargetTag = "TrainingTarget"
 
+local TrainingZones = {
+	Punch = {
+		Name = "BLOOM_FIST",
+		Center = Vector3.new(0, 0, -46),
+		Size = Vector2.new(62, 62),
+		Color = Color3.fromRGB(255, 130, 60),
+		Accent = Color3.fromRGB(255, 200, 115),
+		Material = Enum.Material.Neon,
+		SpawnOffset = Vector3.new(0, 0, -18),
+	},
+	Endurance = {
+		Name = "STEEL_STRIDE",
+		Center = Vector3.new(-48, 0, 10),
+		Size = Vector2.new(48, 48),
+		Color = Color3.fromRGB(80, 160, 255),
+		Accent = Color3.fromRGB(145, 220, 255),
+		Material = Enum.Material.Metal,
+		SpawnOffset = Vector3.new(-16, 0, 12),
+	},
+	Psych = {
+		Name = "MIND_HARBOR",
+		Center = Vector3.new(48, 0, 10),
+		Size = Vector2.new(44, 44),
+		Color = Color3.fromRGB(90, 190, 230),
+		Accent = Color3.fromRGB(190, 255, 245),
+		Material = Enum.Material.SmoothPlastic,
+		SpawnOffset = Vector3.new(16, 0, 12),
+	},
+}
+
+local function createZonePlate(zoneKey, zone)
+	local base = makePart()
+	base.Name = "Zone_" .. zoneKey
+	base.Size = Vector3.new(zone.Size.X, 1.8, zone.Size.Y)
+	base.Position = zone.Center + Vector3.new(0, 0.9, 0)
+	base.Color = zone.Color
+	base.Material = zone.Material
+	base.CastShadow = false
+	base.Transparency = 0.35
+	base.Parent = ArenaRoot
+
+	local frame = makePart()
+	frame.Name = "ZoneFrame_" .. zoneKey
+	frame.Size = Vector3.new(zone.Size.X + 6, 1.2, zone.Size.Y + 6)
+	frame.Position = zone.Center + Vector3.new(0, 0.7, 0)
+	frame.Color = zone.Accent
+	frame.Material = Enum.Material.Neon
+	frame.Transparency = 0.85
+	frame.Parent = ArenaRoot
+
+	local marker = Instance.new("BillboardGui")
+	marker.Name = "ZoneNameTag"
+	marker.Size = UDim2.new(0, 260, 0, 52)
+	marker.AlwaysOnTop = true
+	marker.MaxDistance = 320
+	marker.StudsOffset = Vector3.new(0, 10, 0)
+	marker.Parent = base
+	
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.new(1, 0, 1, 0)
+	text.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
+	text.BackgroundTransparency = 0.15
+	text.Text = zoneKey .. " ZONE"
+	text.TextColor3 = Color3.fromRGB(245, 244, 235)
+	text.TextScaled = true
+	text.Font = Enum.Font.FredokaOne
+	text.Parent = marker
+	Instance.new("UICorner", text).CornerRadius = UDim.new(0, 8)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = zone.Accent
+	stroke.Parent = text
+
+	return base
+end
+
+local function spawnEnduranceCourse()
+	for i = 1, 8 do
+		local offset = Vector3.new(math.sin(i) * 14, 6, math.cos(i * 0.95) * 14)
+		local rail = makePart()
+		rail.Name = "EndurancePillar_" .. i
+		rail.Size = Vector3.new(3.6, 10, 3.6)
+		rail.Position = TrainingZones.Endurance.Center + Vector3.new(offset.X, 5, offset.Z)
+		rail.Color = Color3.fromRGB(150, 170, 210)
+		rail.Material = Enum.Material.Metal
+		rail.CastShadow = false
+		rail.Parent = ArenaRoot
+
+		local spark = Instance.new("PointLight")
+		spark.Brightness = 1.8
+		spark.Color = Color3.fromRGB(175, 220, 255)
+		spark.Range = 14
+		spark.Parent = rail
+
+		local tween = TweenService:Create(
+			rail,
+			TweenInfo.new(1.2 + (i * 0.1), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Position = rail.Position + Vector3.new(0, 1.8, 0) }
+		)
+		tween:Play()
+	end
+
+	local lane = makePart()
+	lane.Name = "EnduranceLane"
+	lane.Size = Vector3.new(2, 0.8, 34)
+	lane.Position = TrainingZones.Endurance.Center + Vector3.new(0, 1.6, 6.5)
+	lane.Color = Color3.fromRGB(35, 145, 255)
+	lane.Material = Enum.Material.Neon
+	lane.Transparency = 0.42
+	lane.Parent = ArenaRoot
+end
+
+local function spawnPsychNodes()
+	for i = 1, 7 do
+		local angle = i / 7 * math.pi * 2
+		local offset = Vector3.new(math.cos(angle) * 10.5, 2.5, math.sin(angle) * 10.5)
+		local node = makePart()
+		node.Name = "PsychShard_" .. i
+		node.Shape = Enum.PartType.Ball
+		node.Size = Vector3.new(2.4, 2.4, 2.4)
+		node.Position = TrainingZones.Psych.Center + offset
+		node.Material = Enum.Material.Neon
+		node.Color = Color3.fromRGB(160, 255, 240)
+		node.CastShadow = false
+		node.Parent = ArenaRoot
+
+		local light = Instance.new("PointLight")
+		light.Brightness = 3
+		light.Color = node.Color
+		light.Range = 10
+		light.Parent = node
+
+		local ring = makePart()
+		ring.Shape = Enum.PartType.Cylinder
+		ring.Size = Vector3.new(0.25, 4, 4)
+		ring.CFrame = CFrame.new(node.Position - Vector3.new(0, 1.2, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+		ring.Material = Enum.Material.ForceField
+		ring.Color = Color3.fromRGB(170, 250, 245)
+		ring.Transparency = 0.85
+		ring.Parent = ArenaRoot
+
+		local tween = TweenService:Create(
+			node,
+			TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Position = node.Position + Vector3.new(0, 1.5, 0) }
+		)
+		tween:Play()
+	end
+end
+
 local function makePart(className)
 	local part = Instance.new("Part")
 	part.Anchored = true
@@ -113,6 +264,31 @@ function ArenaService.getSpawnCFrame()
 		return SpawnPart.CFrame + Vector3.new(0, 3, 0)
 	end
 	return CFrame.new(0, 8, 0)
+end
+
+local function nearestZone(position)
+	local selected = "Punch"
+	local nearest = math.huge
+	for name, zone in pairs(TrainingZones) do
+		local delta = (position - zone.Center).Magnitude
+		if delta < nearest then
+			nearest = delta
+			selected = name
+		end
+	end
+	return selected
+end
+
+function ArenaService.getZoneForPlayer(player)
+	local character = player and player.Character
+	if not character then
+		return "Punch"
+	end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return "Punch"
+	end
+	return nearestZone(hrp.Position)
 end
 
 function ArenaService.resolveTarget(part)
@@ -260,6 +436,16 @@ function ArenaService.init()
 	spawnLight.Color = Color3.fromRGB(92, 250, 230)
 	spawnLight.Parent = SpawnPart
 
+	local function buildZoneVisuals()
+		for zoneName, zone in pairs(TrainingZones) do
+			createZonePlate(zoneName, zone)
+		end
+		spawnEnduranceCourse()
+		spawnPsychNodes()
+	end
+	buildZoneVisuals()
+
+	local punchCenter = TrainingZones.Punch.Center
 	for i = 1, Config.Targets.Count do
 		local angle = (i - 1) / Config.Targets.Count * math.pi * 2
 		local x = math.cos(angle) * Config.Targets.DistanceFromCenter
@@ -267,7 +453,7 @@ function ArenaService.init()
 		local target = makePart()
 		target.Name = "TrainingTarget_" .. string.format("%02d", i)
 		target.Size = Config.Targets and Config.Targets.Size and Vector3.new(7, 2.3, 7) or Vector3.new(7, 2, 7)
-		target.Position = Vector3.new(x, Config.Targets.HeightOffset, z)
+		target.Position = Vector3.new(punchCenter.X + x, Config.Targets.HeightOffset, punchCenter.Z + z)
 		target.Color = Color3.fromRGB(255, 145, 90)
 		target.Material = Enum.Material.Neon
 		target.Transparency = 0.08
@@ -294,7 +480,7 @@ function ArenaService.init()
 		ring.Name = "RangeRing"
 		ring.Shape = Enum.PartType.Cylinder
 		ring.Size = Vector3.new(0.2, 20, 20)
-		ring.CFrame = CFrame.new(Vector3.new(x, Config.Targets.HeightOffset - 1, z)) * CFrame.Angles(math.rad(90), 0, 0)
+		ring.CFrame = CFrame.new(Vector3.new(punchCenter.X + x, Config.Targets.HeightOffset - 1, punchCenter.Z + z)) * CFrame.Angles(math.rad(90), 0, 0)
 		ring.Material = Enum.Material.ForceField
 		ring.Color = Color3.fromRGB(120, 240, 210)
 		ring.Transparency = 0.7

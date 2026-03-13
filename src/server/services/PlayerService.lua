@@ -39,6 +39,35 @@ local function createValue(parent, valueClass, name, value)
 	return v
 end
 
+local function buildAbilityInventory(player)
+	local inventory = createFolder(player, "AbilityInventory")
+	local slot1 = createValue(inventory, "StringValue", "Slot1", "Punch")
+	local slot2 = createValue(inventory, "StringValue", "Slot2", "Sprint")
+	local slot3 = createValue(inventory, "StringValue", "Slot3", "Focus")
+	local equipped = createValue(inventory, "StringValue", "EquippedAbility", "Punch")
+	slot1.Parent = inventory
+	slot2.Parent = inventory
+	slot3.Parent = inventory
+	equipped.Parent = inventory
+
+	local unlocked = createFolder(inventory, "Unlocked")
+	createValue(unlocked, "BoolValue", "Punch", true)
+	createValue(unlocked, "BoolValue", "Sprint", true)
+	createValue(unlocked, "BoolValue", "Focus", true)
+	createValue(unlocked, "BoolValue", "UpperCut", true)
+	createValue(unlocked, "BoolValue", "Flurry", true)
+	createValue(unlocked, "BoolValue", "Dash", true)
+
+	return {
+		Inventory = inventory,
+		Slot1 = slot1,
+		Slot2 = slot2,
+		Slot3 = slot3,
+		Equipped = equipped,
+		Unlocked = unlocked,
+	}
+end
+
 local function buildProfile(player)
 	local leaderstats = createFolder(player, "leaderstats")
 	local hidden = createFolder(player, "PowerTrainingData")
@@ -53,9 +82,12 @@ local function buildProfile(player)
 		BestCombo = createValue(hidden, "IntValue", "BestCombo", 0),
 	}
 
+	local abilities = buildAbilityInventory(player)
+
 	local profile = {
 		Player = player,
 		Values = values,
+		Abilities = abilities,
 		Combo = 0,
 		LastHitAt = 0,
 		LastActions = {},
@@ -122,6 +154,64 @@ function PlayerService.getProfile(player)
 	return Profiles[player]
 end
 
+function PlayerService.getAbilityBySlot(player, slot)
+	local profile = Profiles[player]
+	if not profile or not profile.Abilities then
+		return nil
+	end
+	if slot == 1 then
+		return profile.Abilities.Slot1 and profile.Abilities.Slot1.Value
+	elseif slot == 2 then
+		return profile.Abilities.Slot2 and profile.Abilities.Slot2.Value
+	elseif slot == 3 then
+		return profile.Abilities.Slot3 and profile.Abilities.Slot3.Value
+	end
+	return nil
+end
+
+function PlayerService.getEquippedAbility(player)
+	local profile = Profiles[player]
+	if profile and profile.Abilities and profile.Abilities.Equipped then
+		return profile.Abilities.Equipped.Value
+	end
+	return nil
+end
+
+function PlayerService.setEquippedAbility(player, action)
+	local profile = Profiles[player]
+	if not profile or not profile.Abilities or not profile.Abilities.Equipped then
+		return false
+	end
+	profile.Abilities.Equipped.Value = action
+	return true
+end
+
+function PlayerService.canUseAction(player, actionName)
+	local profile = Profiles[player]
+	if not profile or not profile.Abilities then
+		return false
+	end
+	local unlocked = profile.Abilities.Unlocked
+	local node = unlocked and unlocked:FindFirstChild(actionName)
+	if node and node:IsA("BoolValue") then
+		return node.Value
+	end
+	return false
+end
+
+function PlayerService.getAbilityInventory(player)
+	local profile = Profiles[player]
+	if not profile or not profile.Abilities then
+		return nil
+	end
+	return {
+		Slot1 = profile.Abilities.Slot1 and profile.Abilities.Slot1.Value or "",
+		Slot2 = profile.Abilities.Slot2 and profile.Abilities.Slot2.Value or "",
+		Slot3 = profile.Abilities.Slot3 and profile.Abilities.Slot3.Value or "",
+		Equipped = profile.Abilities.Equipped and profile.Abilities.Equipped.Value or "",
+	}
+end
+
 function PlayerService.setSession(player, active)
 	local profile = Profiles[player]
 	if not profile then
@@ -143,7 +233,7 @@ function PlayerService.setSession(player, active)
 	return true
 end
 
-function PlayerService.applyAction(player, actionName, wasHit, quality)
+function PlayerService.applyAction(player, actionName, wasHit, quality, zoneName)
 	local profile = Profiles[player]
 	if not profile then
 		return nil, "Player profile not found."
@@ -155,6 +245,9 @@ function PlayerService.applyAction(player, actionName, wasHit, quality)
 	local action = Config.Actions[actionName]
 	if not action then
 		return nil, "Unknown training action."
+	end
+	if not PlayerService.canUseAction(player, actionName) then
+		return nil, "This ability is not in your inventory."
 	end
 
 	local now = os.clock()
@@ -183,6 +276,11 @@ function PlayerService.applyAction(player, actionName, wasHit, quality)
 	end
 
 	local comboBonus = 1 + ((profile.Combo - 1) * Config.Player.ComboBonusPerHit)
+	local zoneMultiplier = 1
+	local currentZone = zoneName or "Punch"
+	if action.ZoneMultiplier then
+		zoneMultiplier = action.ZoneMultiplier[currentZone] or action.ZoneMultiplier.Default or 1
+	end
 	local qualityMul = 1
 	if quality == "Perfect" then
 		qualityMul = action.PerfectMultiplier
@@ -197,8 +295,8 @@ function PlayerService.applyAction(player, actionName, wasHit, quality)
 		qualityMul = qualityMul * Config.Player.MissXpMultiplier
 	end
 
-	local gainedXp = math.floor(action.XPGain * comboBonus * qualityMul + 0.5)
-	local gainedPower = math.floor(action.PowerGain * comboBonus * qualityMul + 0.5)
+	local gainedXp = math.floor(action.XPGain * comboBonus * qualityMul * zoneMultiplier + 0.5)
+	local gainedPower = math.floor(action.PowerGain * comboBonus * qualityMul * zoneMultiplier + 0.5)
 
 	profile.Values.Experience.Value += gainedXp
 	profile.Values.Power.Value += gainedPower

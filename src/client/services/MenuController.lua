@@ -112,7 +112,7 @@ function MenuController.new(config, player, menuRemote, playerGui, fxController)
 	subtitle.TextScaled = false
 	subtitle.TextSize = 23
 
-	local tip = makeLabel(panel, "Tip", 0.29, "Press the highlighted actions once ready.")
+	local tip = makeLabel(panel, "Tip", 0.29, "Use inventory keys 1, 2, 3 to trigger Punch, Endurance, and Psychic.")
 	tip.TextSize = 16
 	tip.TextColor3 = Color3.fromRGB(230, 230, 220)
 

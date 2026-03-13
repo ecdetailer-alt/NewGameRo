@@ -61,6 +61,7 @@ local function buildFeedback(player, success, actionName, payload)
 		Quality = payload.Quality or "Miss",
 		Message = payload.Message or "",
 		Impact = payload.Impact,
+		Zone = payload.Zone or "Punch",
 		GainedXp = payload.GainedXp or 0,
 		GainedPower = payload.GainedPower or 0,
 		LevelUps = payload.LevelUps or 0,
@@ -87,36 +88,68 @@ function TrainingService.onTrainAction(player, actionName)
 		return
 	end
 
+	local zoneName = "Punch"
+	if ArenaService and ArenaService.getZoneForPlayer then
+		zoneName = ArenaService.getZoneForPlayer(player) or "Punch"
+	end
+
+	if action.AllowedZones and not action.AllowedZones[zoneName] then
+		Remotes.TrainingFeedback:FireClient(player, buildFeedback(player, false, actionName, {
+			Quality = "Miss",
+			Zone = zoneName,
+			Message = ("%s doesn't work in the %s area."):format(action.DisplayName, zoneName),
+		}))
+		return
+	end
+
 	local target, hitPos
 	local hit = false
 	local quality = "Clean"
 	if action.Range > 0 then
-		local resolvedTarget, resolvedPos = locateTargetFromRay(player, action)
-		target = resolvedTarget
-		hitPos = resolvedPos
-		if target then
-			local broke, ratio = ArenaService.applyDamage(target, action.Damage)
-			hit = true
-			if target:GetAttribute("Disabled") then
-				quality = "Shatter"
+		if zoneName == "Punch" then
+			local resolvedTarget, resolvedPos = locateTargetFromRay(player, action)
+			target = resolvedTarget
+			hitPos = resolvedPos
+			if target then
+				local broke, ratio = ArenaService.applyDamage(target, action.Damage)
+				hit = true
+				if target:GetAttribute("Disabled") then
+					quality = "Shatter"
+				else
+					quality = qualityFromRemainingFraction(ratio)
+				end
+				ArenaService.spawnWorldImpact(hitPos, quality)
 			else
-				quality = qualityFromRemainingFraction(ratio)
+				hit = false
+				quality = "Miss"
 			end
-			ArenaService.spawnWorldImpact(hitPos, quality)
+		elseif action.Name == "Dash" and zoneName == "Endurance" then
+			hit = true
+			quality = "Great"
+			local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				hitPos = hrp.Position + hrp.CFrame.LookVector * 4
+			end
 		else
-			hit = false
 			quality = "Miss"
+			hit = false
 		end
+	end
 	else
-		-- Focus action is internal training; no target required.
+		-- Mental and endurance-focused actions are internal training.
 		hit = true
-		quality = "Perfect"
+		quality = zoneName == "Psych" and "Perfect" or "Great"
 		hitPos = (player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position + player.Character.HumanoidRootPart.CFrame.LookVector * 2)
 	end
 
-	local result, errorMessage = PlayerService.applyAction(player, actionName, hit, quality)
+	if hitPos and (actionName == "Dash" or actionName == "Flurry" or actionName == "UpperCut") then
+		ArenaService.spawnWorldImpact(hitPos, quality)
+	end
+
+	local result, errorMessage = PlayerService.applyAction(player, actionName, hit, quality, zoneName)
 	if not result then
 		Remotes.TrainingFeedback:FireClient(player, buildFeedback(player, false, actionName, {
+			Zone = zoneName,
 			Message = errorMessage,
 			Quality = "Miss",
 		}))
@@ -125,6 +158,7 @@ function TrainingService.onTrainAction(player, actionName)
 
 	if hit then
 		result.Message = string.format("%s hit with %s impact!", action.DisplayName, quality)
+		result.Zone = zoneName
 	else
 		result.Message = string.format("%s missed. Chain broken.", action.DisplayName)
 	end
